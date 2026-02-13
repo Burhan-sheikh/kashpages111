@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Pricing from "./pages/Pricing";
 import About from "./pages/About";
@@ -10,6 +11,9 @@ import Explore from "./pages/Explore";
 import { Login, Signup } from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Builder from "./pages/Builder";
+import Admin from "./pages/Admin";
+import PublicPage from "./pages/PublicPage";
+import { PreviewTemplate, PreviewUserPage } from "./pages/PreviewPage";
 import { Privacy, Terms } from "./pages/Legal";
 import NotFound from "./pages/NotFound";
 
@@ -21,19 +25,25 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/pricing" element={<Pricing />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/explore" element={<Explore />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/builder" element={<Builder />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/terms" element={<Terms />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/explore" element={<Explore />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/builder" element={<Builder />} />
+            <Route path="/admin" element={<Admin />} />
+            <Route path="/preview/template/:id" element={<PreviewTemplate />} />
+            <Route path="/preview/page/:id" element={<PreviewUserPage />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/:username/:slug" element={<PublicPage />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
