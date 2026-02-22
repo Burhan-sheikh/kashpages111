@@ -2,73 +2,38 @@
 
 export type UserRole = 'guest' | 'user' | 'admin';
 export type UserStatus = 'active' | 'suspended' | 'pending';
-export type PageStatus = 'draft' | 'published' | 'pending';
+export type ShopStatus = 'draft' | 'published' | 'unpublished';
 
-export interface User {
-  uid: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  status: UserStatus;
-  avatarUrl?: string;
-  createdAt: string;
-}
-
-export interface PageSeo {
-  title: string;
-  description: string;
-  keywords: string[];
-  ogImage?: string;
-}
-
-export interface Page {
+export interface ShopData {
   id: string;
-  ownerId: string;
+  owner_id: string;
   title: string;
   slug: string;
-  status: PageStatus;
-  seo: PageSeo;
-  contentSchema: ContentBlock[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Template {
-  id: string;
-  name: string;
-  description: string;
-  preview: string;
-  schema: ContentBlock[];
-  category: string;
-}
-
-export interface Revision {
-  id: string;
-  pageId: string;
-  snapshot: ContentBlock[];
-  timestamp: string;
-  label?: string;
-}
-
-// Builder Schema Types
-export type BlockType = 
-  | 'hero' | 'features' | 'testimonials' | 'pricing' 
-  | 'faq' | 'gallery' | 'contact' | 'footer'
-  | 'heading' | 'paragraph' | 'button' | 'image' 
-  | 'video' | 'form' | 'divider' | 'spacer' 
-  | 'social-links' | 'map';
-
-export interface ContentBlock {
-  id: string;
-  type: BlockType;
-  props: Record<string, unknown>;
-  children?: ContentBlock[];
-  order: number;
-}
-
-export interface BuilderState {
-  blocks: ContentBlock[];
-  selectedBlockId: string | null;
-  previewMode: 'desktop' | 'tablet' | 'mobile';
-  isDirty: boolean;
+  cover_image: string | null;
+  gallery: string[];
+  about_text: string | null;
+  h2_title: string | null;
+  services: { title: string; description: string }[];
+  faq: { question: string; answer: string }[];
+  contact_phone: string | null;
+  whatsapp_number: string | null;
+  use_phone_for_whatsapp: boolean;
+  address_line1: string | null;
+  address_line2: string | null;
+  state: string | null;
+  city: string | null;
+  pin_code: string | null;
+  map_link: string | null;
+  map_embed_code: string | null;
+  seo_title: string | null;
+  seo_description: string | null;
+  seo_image: string | null;
+  seo_favicon: string | null;
+  seo_tags: string[] | null;
+  remove_branding: boolean;
+  password_enabled: boolean;
+  ratings_enabled: boolean;
+  status: ShopStatus;
+  created_at: string;
+  updated_at: string;
 }

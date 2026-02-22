@@ -1,58 +1,52 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { FileText, Plus, Layout, Settings, LogOut, Eye, Edit, Trash2, Search, Shield, ExternalLink, Clock, Send } from "lucide-react";
+import {
+  BarChart3, Store, Star, TrendingUp, LogOut, Eye, Phone, MessageCircle,
+  Menu, X, ChevronRight, Shield, Settings, User,
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 
-const statusColors: Record<string, string> = {
-  published: "bg-kashmir-green/15 text-kashmir-green",
-  draft: "bg-muted text-muted-foreground",
-  pending: "bg-primary/15 text-primary",
-  rejected: "bg-destructive/15 text-destructive",
-};
+// Dashboard sub-views
+import AnalyzeOverview from "@/components/dashboard/AnalyzeOverview";
+import MyShop from "@/components/dashboard/MyShop";
+import Reviews from "@/components/dashboard/Reviews";
+import AnalyzeAdvanced from "@/components/dashboard/AnalyzeAdvanced";
+
+type DashboardView = "overview" | "shop" | "reviews" | "analyze";
+
+const sidebarItems: { key: DashboardView; label: string; icon: typeof BarChart3 }[] = [
+  { key: "overview", label: "Analyze Overview", icon: BarChart3 },
+  { key: "shop", label: "My Shop", icon: Store },
+  { key: "reviews", label: "Reviews", icon: Star },
+  { key: "analyze", label: "Analyze", icon: TrendingUp },
+];
 
 const Dashboard = () => {
   const { user, profile, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [searchQuery, setSearchQuery] = useState("");
+  const isMobile = useIsMobile();
+  const [activeView, setActiveView] = useState<DashboardView>("overview");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const { data: pages = [], isLoading } = useQuery({
-    queryKey: ["my-pages", user?.id],
+  // Fetch user's shop
+  const { data: shop } = useQuery({
+    queryKey: ["my-shop", user?.id],
     queryFn: async () => {
-      if (!user) return [];
-      const { data, error } = await supabase.from("pages").select("*").eq("owner_id", user.id).order("updated_at", { ascending: false });
-      if (error) throw error;
+      if (!user) return null;
+      const { data } = await supabase
+        .from("shops")
+        .select("*")
+        .eq("owner_id", user.id)
+        .limit(1)
+        .maybeSingle();
       return data;
     },
     enabled: !!user,
-  });
-
-  const deletePage = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("pages").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["my-pages"] });
-      toast({ title: "Page deleted" });
-    },
-  });
-
-  const submitForApproval = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("pages").update({ status: "pending" }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["my-pages"] });
-      toast({ title: "Submitted for approval" });
-    },
   });
 
   if (!user) {
@@ -60,107 +54,124 @@ const Dashboard = () => {
     return null;
   }
 
-  const filtered = pages.filter((p) => !searchQuery || p.title.toLowerCase().includes(searchQuery.toLowerCase()));
-
-  const sidebarLinks = [
-    { label: "My Pages", icon: FileText, href: "/dashboard" },
-    { label: "Templates", icon: Layout, href: "/explore" },
-    { label: "Settings", icon: Settings, href: "/dashboard" },
-    ...(isAdmin ? [{ label: "Admin Panel", icon: Shield, href: "/admin" }] : []),
-  ];
+  const renderView = () => {
+    switch (activeView) {
+      case "overview":
+        return <AnalyzeOverview shop={shop} />;
+      case "shop":
+        return <MyShop shop={shop} />;
+      case "reviews":
+        return <Reviews shop={shop} userPlan={profile?.plan || "free"} />;
+      case "analyze":
+        return <AnalyzeAdvanced shop={shop} userPlan={profile?.plan || "free"} />;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex">
-      <aside className="hidden md:flex flex-col w-64 bg-secondary text-secondary-foreground border-r border-sidebar-border">
-        <div className="p-5 border-b border-sidebar-border">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="font-display font-bold text-primary-foreground text-sm">K</span>
-            </div>
-            <span className="font-display font-bold text-lg text-secondary-foreground">Kashpages</span>
-          </Link>
-        </div>
-        <nav className="flex-1 p-3 space-y-1">
-          {sidebarLinks.map((link) => (
-            <Link key={link.href + link.label} to={link.href}>
-              <Button variant="ghost" className="w-full justify-start gap-3 text-secondary-foreground/70 hover:text-secondary-foreground hover:bg-sidebar-accent">
-                <link.icon size={18} />
-                {link.label}
-              </Button>
-            </Link>
-          ))}
-        </nav>
-        <div className="p-3 border-t border-sidebar-border">
-          <div className="px-3 py-2 mb-2">
-            <p className="text-sm font-medium text-secondary-foreground truncate">{profile?.display_name || "User"}</p>
-            <p className="text-xs text-secondary-foreground/50 truncate">@{profile?.username}</p>
-          </div>
-          <Button variant="ghost" className="w-full justify-start gap-3 text-secondary-foreground/50 hover:text-secondary-foreground hover:bg-sidebar-accent" onClick={signOut}>
-            <LogOut size={18} /> Sign Out
-          </Button>
-        </div>
-      </aside>
-
-      <main className="flex-1 overflow-auto">
-        <div className="p-6 lg:p-8">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-            <div>
-              <h1 className="text-2xl font-display font-bold text-foreground">My Pages</h1>
-              <p className="text-muted-foreground text-sm mt-1">Manage and create your landing pages</p>
-            </div>
-            <Link to="/builder">
-              <Button variant="hero" size="default"><Plus size={16} /> Create Page</Button>
+      {/* Desktop Sidebar */}
+      {!isMobile && (
+        <aside className="flex flex-col w-64 bg-secondary text-secondary-foreground border-r border-sidebar-border flex-shrink-0">
+          <div className="p-5 border-b border-sidebar-border">
+            <Link to="/" className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                <span className="font-display font-bold text-primary-foreground text-sm">K</span>
+              </div>
+              <span className="font-display font-bold text-lg text-secondary-foreground">Kashpages</span>
             </Link>
           </div>
-
-          <div className="relative max-w-sm mb-6">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input type="text" placeholder="Search pages..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full h-10 pl-10 pr-4 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm" />
-          </div>
-
-          {isLoading ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-20 rounded-xl bg-muted animate-pulse" />
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="text-center py-20">
-              <FileText size={48} className="mx-auto text-muted-foreground/30 mb-4" />
-              <p className="text-muted-foreground">No pages yet. Create your first one!</p>
-              <Link to="/builder" className="mt-4 inline-block">
-                <Button variant="hero"><Plus size={16} /> Create Page</Button>
+          <nav className="flex-1 p-3 space-y-1">
+            {sidebarItems.map((item) => (
+              <button
+                key={item.key}
+                onClick={() => setActiveView(item.key)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  activeView === item.key
+                    ? "bg-sidebar-accent text-sidebar-primary"
+                    : "text-secondary-foreground/60 hover:text-secondary-foreground hover:bg-sidebar-accent/50"
+                }`}
+              >
+                <item.icon size={18} />
+                {item.label}
+              </button>
+            ))}
+            {isAdmin && (
+              <Link to="/admin">
+                <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-secondary-foreground/60 hover:text-secondary-foreground hover:bg-sidebar-accent/50">
+                  <Shield size={18} /> Admin Panel
+                </button>
               </Link>
+            )}
+          </nav>
+          <div className="p-3 border-t border-sidebar-border">
+            <div className="px-3 py-2 mb-2">
+              <p className="text-sm font-medium text-secondary-foreground truncate">{profile?.display_name || "User"}</p>
+              <p className="text-xs text-secondary-foreground/50 truncate">@{profile?.username}</p>
+              <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-sidebar-accent text-sidebar-primary">
+                {profile?.plan || "free"} plan
+              </span>
             </div>
-          ) : (
-            <div className="grid gap-4">
-              {filtered.map((page, i) => (
-                <motion.div key={page.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }} className="flex items-center justify-between p-5 rounded-xl bg-card-gradient border border-border/50 shadow-soft hover:shadow-card transition-all group">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3">
-                      <h3 className="font-display font-semibold text-foreground truncate">{page.title}</h3>
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[page.status]}`}>{page.status}</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-1">/{profile?.username}/{page.slug} · Updated {new Date(page.updated_at).toLocaleDateString()}</p>
-                  </div>
-                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {page.status === "published" && (
-                      <Link to={`/${profile?.username}/${page.slug}`}>
-                        <Button variant="ghost" size="icon"><ExternalLink size={16} /></Button>
-                      </Link>
-                    )}
-                    {page.status === "draft" && (
-                      <Button variant="ghost" size="icon" onClick={() => submitForApproval.mutate(page.id)} title="Submit for approval"><Send size={16} /></Button>
-                    )}
-                    <Link to={`/builder?page=${page.id}`}>
-                      <Button variant="ghost" size="icon"><Edit size={16} /></Button>
-                    </Link>
-                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deletePage.mutate(page.id)}><Trash2 size={16} /></Button>
-                  </div>
-                </motion.div>
-              ))}
+            <Button variant="ghost" className="w-full justify-start gap-3 text-secondary-foreground/50 hover:text-secondary-foreground hover:bg-sidebar-accent" onClick={signOut}>
+              <LogOut size={18} /> Sign Out
+            </Button>
+          </div>
+        </aside>
+      )}
+
+      {/* Mobile Header */}
+      {isMobile && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-secondary text-secondary-foreground border-b border-sidebar-border">
+          <div className="flex items-center justify-between h-14 px-4">
+            <Link to="/" className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
+                <span className="font-display font-bold text-primary-foreground text-xs">K</span>
+              </div>
+              <span className="font-display font-bold text-secondary-foreground">Kashpages</span>
+            </Link>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-secondary-foreground">
+                {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>
             </div>
+          </div>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="border-t border-sidebar-border bg-secondary"
+            >
+              <div className="p-3 space-y-1">
+                {sidebarItems.map((item) => (
+                  <button
+                    key={item.key}
+                    onClick={() => { setActiveView(item.key); setMobileMenuOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                      activeView === item.key
+                        ? "bg-sidebar-accent text-sidebar-primary"
+                        : "text-secondary-foreground/60 hover:text-secondary-foreground"
+                    }`}
+                  >
+                    <item.icon size={18} />
+                    {item.label}
+                  </button>
+                ))}
+                <button
+                  onClick={() => { signOut(); setMobileMenuOpen(false); }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-secondary-foreground/50"
+                >
+                  <LogOut size={18} /> Sign Out
+                </button>
+              </div>
+            </motion.div>
           )}
+        </div>
+      )}
+
+      {/* Main Content */}
+      <main className={`flex-1 overflow-auto ${isMobile ? "pt-14" : ""}`}>
+        <div className="p-6 lg:p-8">
+          {renderView()}
         </div>
       </main>
     </div>
