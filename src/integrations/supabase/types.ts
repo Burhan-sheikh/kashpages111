@@ -14,64 +14,67 @@ export type Database = {
   }
   public: {
     Tables: {
-      pages: {
+      analytics_events: {
         Row: {
-          admin_notes: string | null
-          content_schema: Json
           created_at: string
+          event_type: string
           id: string
-          owner_id: string
-          seo_description: string | null
-          seo_keywords: string[] | null
-          seo_og_image: string | null
-          seo_title: string | null
-          slug: string
-          status: string
-          template_id: string | null
-          title: string
-          updated_at: string
+          metadata: Json | null
+          shop_id: string
         }
         Insert: {
-          admin_notes?: string | null
-          content_schema?: Json
           created_at?: string
+          event_type: string
           id?: string
-          owner_id: string
-          seo_description?: string | null
-          seo_keywords?: string[] | null
-          seo_og_image?: string | null
-          seo_title?: string | null
-          slug: string
-          status?: string
-          template_id?: string | null
-          title: string
-          updated_at?: string
+          metadata?: Json | null
+          shop_id: string
         }
         Update: {
-          admin_notes?: string | null
-          content_schema?: Json
           created_at?: string
+          event_type?: string
           id?: string
-          owner_id?: string
-          seo_description?: string | null
-          seo_keywords?: string[] | null
-          seo_og_image?: string | null
-          seo_title?: string | null
-          slug?: string
-          status?: string
-          template_id?: string | null
-          title?: string
-          updated_at?: string
+          metadata?: Json | null
+          shop_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "pages_template_id_fkey"
-            columns: ["template_id"]
+            foreignKeyName: "analytics_events_shop_id_fkey"
+            columns: ["shop_id"]
             isOneToOne: false
-            referencedRelation: "templates"
+            referencedRelation: "shops"
             referencedColumns: ["id"]
           },
         ]
+      }
+      plans: {
+        Row: {
+          created_at: string
+          features: Json
+          id: string
+          is_active: boolean
+          name: string
+          price_monthly: number
+          slug: string
+        }
+        Insert: {
+          created_at?: string
+          features?: Json
+          id?: string
+          is_active?: boolean
+          name: string
+          price_monthly?: number
+          slug: string
+        }
+        Update: {
+          created_at?: string
+          features?: Json
+          id?: string
+          is_active?: boolean
+          name?: string
+          price_monthly?: number
+          slug?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -80,6 +83,7 @@ export type Database = {
           created_at: string
           display_name: string
           id: string
+          plan: string
           updated_at: string
           user_id: string
           username: string
@@ -90,6 +94,7 @@ export type Database = {
           created_at?: string
           display_name?: string
           id?: string
+          plan?: string
           updated_at?: string
           user_id: string
           username: string
@@ -100,79 +105,202 @@ export type Database = {
           created_at?: string
           display_name?: string
           id?: string
+          plan?: string
           updated_at?: string
           user_id?: string
           username?: string
         }
         Relationships: []
       }
-      revisions: {
+      reviews: {
         Row: {
+          comment: string | null
           created_at: string
           id: string
-          label: string | null
-          page_id: string
-          snapshot: Json
+          is_visible: boolean
+          rating: number
+          reviewer_email: string | null
+          reviewer_name: string
+          shop_id: string
         }
         Insert: {
+          comment?: string | null
           created_at?: string
           id?: string
-          label?: string | null
-          page_id: string
-          snapshot: Json
+          is_visible?: boolean
+          rating: number
+          reviewer_email?: string | null
+          reviewer_name: string
+          shop_id: string
         }
         Update: {
+          comment?: string | null
           created_at?: string
           id?: string
-          label?: string | null
-          page_id?: string
-          snapshot?: Json
+          is_visible?: boolean
+          rating?: number
+          reviewer_email?: string | null
+          reviewer_name?: string
+          shop_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "revisions_page_id_fkey"
-            columns: ["page_id"]
+            foreignKeyName: "reviews_shop_id_fkey"
+            columns: ["shop_id"]
             isOneToOne: false
-            referencedRelation: "pages"
+            referencedRelation: "shops"
             referencedColumns: ["id"]
           },
         ]
       }
-      templates: {
+      shops: {
         Row: {
-          category: string
+          about_text: string | null
+          address_line1: string | null
+          address_line2: string | null
+          city: string | null
+          contact_phone: string | null
+          cover_image: string | null
           created_at: string
-          description: string
+          faq: Json
+          gallery: Json
+          h2_title: string | null
           id: string
-          is_active: boolean
-          name: string
-          preview_image: string | null
-          schema: Json
+          map_embed_code: string | null
+          map_link: string | null
+          owner_id: string
+          password_enabled: boolean
+          password_hash: string | null
+          pin_code: string | null
+          ratings_enabled: boolean
+          remove_branding: boolean
+          seo_description: string | null
+          seo_favicon: string | null
+          seo_image: string | null
+          seo_tags: string[] | null
+          seo_title: string | null
+          services: Json
+          slug: string
+          state: string | null
+          status: string
+          title: string
           updated_at: string
+          use_phone_for_whatsapp: boolean
+          whatsapp_number: string | null
         }
         Insert: {
-          category: string
+          about_text?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          contact_phone?: string | null
+          cover_image?: string | null
           created_at?: string
-          description?: string
+          faq?: Json
+          gallery?: Json
+          h2_title?: string | null
           id?: string
-          is_active?: boolean
-          name: string
-          preview_image?: string | null
-          schema?: Json
+          map_embed_code?: string | null
+          map_link?: string | null
+          owner_id: string
+          password_enabled?: boolean
+          password_hash?: string | null
+          pin_code?: string | null
+          ratings_enabled?: boolean
+          remove_branding?: boolean
+          seo_description?: string | null
+          seo_favicon?: string | null
+          seo_image?: string | null
+          seo_tags?: string[] | null
+          seo_title?: string | null
+          services?: Json
+          slug: string
+          state?: string | null
+          status?: string
+          title: string
           updated_at?: string
+          use_phone_for_whatsapp?: boolean
+          whatsapp_number?: string | null
         }
         Update: {
-          category?: string
+          about_text?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          city?: string | null
+          contact_phone?: string | null
+          cover_image?: string | null
           created_at?: string
-          description?: string
+          faq?: Json
+          gallery?: Json
+          h2_title?: string | null
           id?: string
-          is_active?: boolean
-          name?: string
-          preview_image?: string | null
-          schema?: Json
+          map_embed_code?: string | null
+          map_link?: string | null
+          owner_id?: string
+          password_enabled?: boolean
+          password_hash?: string | null
+          pin_code?: string | null
+          ratings_enabled?: boolean
+          remove_branding?: boolean
+          seo_description?: string | null
+          seo_favicon?: string | null
+          seo_image?: string | null
+          seo_tags?: string[] | null
+          seo_title?: string | null
+          services?: Json
+          slug?: string
+          state?: string | null
+          status?: string
+          title?: string
           updated_at?: string
+          use_phone_for_whatsapp?: boolean
+          whatsapp_number?: string | null
         }
         Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          cashfree_subscription_id: string | null
+          created_at: string
+          ends_at: string | null
+          id: string
+          plan_id: string
+          starts_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cashfree_subscription_id?: string | null
+          created_at?: string
+          ends_at?: string | null
+          id?: string
+          plan_id: string
+          starts_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cashfree_subscription_id?: string | null
+          created_at?: string
+          ends_at?: string | null
+          id?: string
+          plan_id?: string
+          starts_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
