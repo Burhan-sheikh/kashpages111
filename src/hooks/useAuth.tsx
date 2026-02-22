@@ -9,6 +9,7 @@ interface Profile {
   display_name: string;
   avatar_url: string | null;
   bio: string | null;
+  plan: string;
 }
 
 type AppRole = "admin" | "moderator" | "user";

@@ -10,10 +10,8 @@ import About from "./pages/About";
 import Explore from "./pages/Explore";
 import { Login, Signup } from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
-import Builder from "./pages/Builder";
 import Admin from "./pages/Admin";
 import PublicPage from "./pages/PublicPage";
-import { PreviewTemplate, PreviewUserPage } from "./pages/PreviewPage";
 import { Privacy, Terms } from "./pages/Legal";
 import NotFound from "./pages/NotFound";
 
@@ -34,13 +32,10 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/builder" element={<Builder />} />
             <Route path="/admin" element={<Admin />} />
-            <Route path="/preview/template/:id" element={<PreviewTemplate />} />
-            <Route path="/preview/page/:id" element={<PreviewUserPage />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
-            <Route path="/:username/:slug" element={<PublicPage />} />
+            <Route path="/s/:slug" element={<PublicPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
