@@ -14,6 +14,7 @@ import Admin from "./pages/Admin";
 import PublicPage from "./pages/PublicPage";
 import { Privacy, Terms } from "./pages/Legal";
 import NotFound from "./pages/NotFound";
+import ShopSetup from "./pages/ShopSetup";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/shop/setup" element={<ShopSetup />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
