@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { firestore } from "@/integrations/firebase/client";
 import { Eye, MessageCircle, Phone, Star } from "lucide-react";
 import { motion } from "framer-motion";
+import { collection, query, where, getDocs } from "firebase/firestore";
 
 interface Props {
   shop: any | null;
@@ -12,17 +13,17 @@ const AnalyzeOverview = ({ shop }: Props) => {
     queryKey: ["shop-stats", shop?.id],
     queryFn: async () => {
       if (!shop) return { views: 0, whatsapp: 0, phone: 0, reviews: 0 };
-      const [views, whatsapp, phone, reviews] = await Promise.all([
-        supabase.from("analytics_events").select("id", { count: "exact", head: true }).eq("shop_id", shop.id).eq("event_type", "view"),
-        supabase.from("analytics_events").select("id", { count: "exact", head: true }).eq("shop_id", shop.id).eq("event_type", "whatsapp_click"),
-        supabase.from("analytics_events").select("id", { count: "exact", head: true }).eq("shop_id", shop.id).eq("event_type", "phone_click"),
-        supabase.from("reviews").select("id", { count: "exact", head: true }).eq("shop_id", shop.id),
+      const [viewsSnap, whatsappSnap, phoneSnap, reviewsSnap] = await Promise.all([
+        getDocs(query(collection(firestore, "analytics_events"), where("shop_id", "==", shop.id), where("event_type", "==", "view"))),
+        getDocs(query(collection(firestore, "analytics_events"), where("shop_id", "==", shop.id), where("event_type", "==", "whatsapp_click"))),
+        getDocs(query(collection(firestore, "analytics_events"), where("shop_id", "==", shop.id), where("event_type", "==", "phone_click"))),
+        getDocs(query(collection(firestore, "reviews"), where("shop_id", "==", shop.id))),
       ]);
       return {
-        views: views.count || 0,
-        whatsapp: whatsapp.count || 0,
-        phone: phone.count || 0,
-        reviews: reviews.count || 0,
+        views: viewsSnap.size,
+        whatsapp: whatsappSnap.size,
+        phone: phoneSnap.size,
+        reviews: reviewsSnap.size,
       };
     },
     enabled: !!shop,

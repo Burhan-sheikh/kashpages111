@@ -1,0 +1,26 @@
+{
+  "shops": {
+    "shop1": {
+      "owner_id": "user123",
+      "title": "Foo Store",
+      "slug": "foo-store",
+      "status": "published",
+      "updated_at": 1700000000000
+    }
+  },
+  "profiles": {
+    "user123": {
+      "user_id": "user123",
+      "username": "alice",
+
+      "plan": "free",
+      "created_at": 1700000000000
+    }
+  },
+  "user_roles": {
+    "role1": {
+      "user_id": "user123",
+      "role": "admin"
+    }
+  }
+}

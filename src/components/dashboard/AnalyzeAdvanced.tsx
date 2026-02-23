@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { firestore } from "@/integrations/firebase/client";
+import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Download, Lock, Eye, MessageCircle, Phone, Star, Filter } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -18,23 +19,22 @@ const AnalyzeAdvanced = ({ shop, userPlan }: Props) => {
     queryKey: ["analytics-events", shop?.id, period],
     queryFn: async () => {
       if (!shop) return [];
-      let query = supabase
-        .from("analytics_events")
-        .select("*")
-        .eq("shop_id", shop.id)
-        .order("created_at", { ascending: false });
+      let q = query(
+        collection(firestore, "analytics_events"),
+        where("shop_id", "==", shop.id),
+        orderBy("created_at", "desc")
+      );
       if (period === "7d") {
         const d = new Date();
         d.setDate(d.getDate() - 7);
-        query = query.gte("created_at", d.toISOString());
+        q = query(q, where("created_at", ">=", d));
       } else if (period === "30d") {
         const d = new Date();
         d.setDate(d.getDate() - 30);
-        query = query.gte("created_at", d.toISOString());
+        q = query(q, where("created_at", ">=", d));
       }
-      const { data, error } = await query;
-      if (error) throw error;
-      return data;
+      const snap = await getDocs(q);
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     },
     enabled: !!shop && userPlan !== "free",
   });

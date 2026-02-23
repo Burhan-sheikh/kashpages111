@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Shield, Clock, ArrowLeft, Users, Store } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { firestore } from "@/integrations/firebase/client";
+import { collection, query, orderBy, getDocs } from "firebase/firestore";
 
 const Admin = () => {
   const { user, isAdmin, loading } = useAuth();
@@ -15,9 +16,9 @@ const Admin = () => {
   const { data: shops = [] } = useQuery({
     queryKey: ["admin-shops"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("shops").select("*").order("updated_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      const q = query(collection(firestore, "shops"), orderBy("updated_at", "desc"));
+      const snap = await getDocs(q);
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     },
     enabled: !!user && isAdmin,
   });
@@ -25,9 +26,9 @@ const Admin = () => {
   const { data: users = [] } = useQuery({
     queryKey: ["admin-users"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      const q = query(collection(firestore, "profiles"), orderBy("created_at", "desc"));
+      const snap = await getDocs(q);
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     },
     enabled: !!user && isAdmin && tab === "users",
   });
@@ -58,7 +59,7 @@ const Admin = () => {
             {users.map((u) => (
               <div key={u.id} className="flex items-center justify-between p-4 rounded-xl bg-card-gradient border border-border/50">
                 <div>
-                  <p className="font-semibold text-foreground">{u.display_name}</p>
+                  <p className="font-semibold text-foreground">@{u.username}</p>
                   <p className="text-sm text-muted-foreground">@{u.username} · {u.plan} plan</p>
                 </div>
                 <p className="text-xs text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</p>

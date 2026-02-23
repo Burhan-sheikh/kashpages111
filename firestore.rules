@@ -1,0 +1,45 @@
+// Firestore security rules tailored to the project's schema.
+// Collections used by the app:
+//  - shops        (owned by a user, visible to everyone)
+//  - profiles     (one document per user)
+//  - user_roles   (maps user IDs to roles such as "admin")
+//
+// Admin functionality in the client relies on an `admin` custom claim
+// being set on the user's ID token. You can also manage roles via the
+// `user_roles` collection but rules cannot query across collections, so
+// the easiest approach is to add a custom claim when you promote a user.
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // shops: anyone authenticated may read; writes restricted to owner
+    match /shops/{shopId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                     && request.resource.data.owner_id == request.auth.uid;
+      allow update, delete: if request.auth != null
+                            && resource.data.owner_id == request.auth.uid;
+    }
+
+    // profiles: user may read/write their own document; admins can access all
+    match /profiles/{userId} {
+      allow read, write: if request.auth != null
+                         && (request.auth.uid == userId
+                             || request.auth.token.admin == true);
+    }
+
+    // user_roles: users can read their own roles; only admins may modify
+    match /user_roles/{roleId} {
+      allow read: if request.auth != null && (
+                    resource.data.user_id == request.auth.uid
+                    || request.auth.token.admin == true);
+      allow create, update, delete: if request.auth != null
+                                    && request.auth.token.admin == true;
+    }
+
+    // lock down everything else by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

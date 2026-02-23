@@ -1,0 +1,23 @@
+// Firebase Storage security rules for shop assets and user uploads
+// Files are stored under the bucket with paths like:
+//   shop-assets/{userId}/...     (images for a shop owned by userId)
+
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // allow public read of all files (you can restrict further if needed)
+    match /{allPaths=**} {
+      allow read: if true;
+    }
+
+    // write access only for authenticated user uploading to their own folder
+    match /shop-assets/{userId}/{rest=**} {
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // deny all other writes by default
+    match /{allPaths=**} {
+      allow write: if false;
+    }
+  }
+}

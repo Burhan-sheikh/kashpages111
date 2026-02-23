@@ -7,7 +7,7 @@ CREATE TABLE public.profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL UNIQUE,
   username TEXT UNIQUE NOT NULL,
-  display_name TEXT NOT NULL DEFAULT '',
+
   avatar_url TEXT,
   bio TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -117,8 +117,8 @@ BEGIN
     NEW.raw_user_meta_data->>'username',
     LOWER(REPLACE(SPLIT_PART(NEW.email, '@', 1), '.', '_')) || '_' || SUBSTR(NEW.id::text, 1, 4)
   );
-  INSERT INTO public.profiles (user_id, username, display_name)
-  VALUES (NEW.id, _username, COALESCE(NEW.raw_user_meta_data->>'display_name', SPLIT_PART(NEW.email, '@', 1)));
+  INSERT INTO public.profiles (user_id, username)
+  VALUES (NEW.id, _username);
   
   INSERT INTO public.user_roles (user_id, role) VALUES (NEW.id, 'user');
   RETURN NEW;

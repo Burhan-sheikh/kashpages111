@@ -15,6 +15,7 @@ import PublicPage from "./pages/PublicPage";
 import { Privacy, Terms } from "./pages/Legal";
 import NotFound from "./pages/NotFound";
 import ShopSetup from "./pages/ShopSetup";
+import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/s/:slug" element={<PublicPage />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

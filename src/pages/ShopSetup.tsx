@@ -12,7 +12,9 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { firestore, storage } from "@/integrations/firebase/client";
+// Removed Firestore imports for shop update
+import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from "@/hooks/use-toast";
 
 interface ServiceItem {
@@ -60,16 +62,17 @@ const ShopSetup = () => {
 
   // Fetch existing shop
   const { data: existingShop, isLoading } = useQuery({
-    queryKey: ["my-shop-setup", user?.id],
+    queryKey: ["my-shop-setup", user?.uid],
     queryFn: async () => {
       if (!user) return null;
-      const { data } = await supabase
-        .from("shops")
-        .select("*")
-        .eq("owner_id", user.id)
-        .limit(1)
-        .maybeSingle();
-      return data;
+      const q = query(
+        collection(firestore, "shops"),
+        where("owner_id", "==", user.uid),
+        limit(1)
+      );
+      const snap = await getDocs(q);
+      const doc = snap.docs[0];
+      return doc ? { id: doc.id, ...doc.data() } : null;
     },
     enabled: !!user,
   });
@@ -88,7 +91,11 @@ const ShopSetup = () => {
       setFaq(Array.isArray(existingShop.faq) ? (existingShop.faq as unknown as FaqItem[]) : []);
       setContactPhone(existingShop.contact_phone || "");
       setWhatsappNumber(existingShop.whatsapp_number || "");
-      setUsePhoneForWhatsapp(existingShop.use_phone_for_whatsapp);
+      setUsePhoneForWhatsapp(
+        typeof existingShop.use_phone_for_whatsapp === "boolean"
+          ? existingShop.use_phone_for_whatsapp
+          : true
+      );
       setAddressLine1(existingShop.address_line1 || "");
       setAddressLine2(existingShop.address_line2 || "");
       setState(existingShop.state || "");
@@ -109,14 +116,16 @@ const ShopSetup = () => {
   // Image upload helper
   const uploadImage = useCallback(async (file: File, path: string): Promise<string | null> => {
     const ext = file.name.split(".").pop();
-    const filePath = `${user!.id}/${path}-${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("shop-assets").upload(filePath, file, { upsert: true });
-    if (error) {
-      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+    const filePath = `${user!.uid}/${path}-${Date.now()}.${ext}`;
+    try {
+      const storageReference = storageRef(storage, `shop-assets/${filePath}`);
+      await uploadBytes(storageReference, file);
+      const url = await getDownloadURL(storageReference);
+      return url;
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message || "unknown error", variant: "destructive" });
       return null;
     }
-    const { data } = supabase.storage.from("shop-assets").getPublicUrl(filePath);
-    return data.publicUrl;
   }, [user, toast]);
 
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -159,21 +168,26 @@ const ShopSetup = () => {
   // Save / upsert shop
   const saveShop = useMutation({
     mutationFn: async (status: string) => {
-      if (!user) throw new Error("Not authenticated");
+      if (!user?.uid) {
+        console.error("Shop creation attempted with undefined user.uid", user);
+        throw new Error("User not authenticated");
+      }
       const shopData = {
-        owner_id: user.id,
+        owner_id: user.uid,
         title,
         slug,
-        cover_image: coverImage,
+        cover_image: coverImage ?? null,
         ratings_enabled: isPro ? ratingsEnabled : true,
-        gallery: gallery as any,
+        gallery: gallery ?? [],
         about_text: aboutText || null,
         h2_title: h2Title || null,
-        services: services.filter((s) => s.title) as any,
-        faq: faq.filter((f) => f.question) as any,
+        services: services.filter((s) => s.title),
+        faq: faq.filter((f) => f.question),
         contact_phone: contactPhone || null,
-        whatsapp_number: usePhoneForWhatsapp ? contactPhone : whatsappNumber || null,
-        use_phone_for_whatsapp: usePhoneForWhatsapp,
+        whatsapp_number: usePhoneForWhatsapp
+          ? contactPhone || null
+          : whatsappNumber || null,
+        use_phone_for_whatsapp: Boolean(usePhoneForWhatsapp),
         address_line1: addressLine1 || null,
         address_line2: addressLine2 || null,
         state: state || null,
@@ -184,12 +198,18 @@ const ShopSetup = () => {
         status,
       };
 
-      if (existingShop) {
-        const { error } = await supabase.from("shops").update(shopData).eq("id", existingShop.id);
-        if (error) throw error;
+      if (existingShop && existingShop.id) {
+        await fetch(`http://localhost:3001/api/shop-update?shopId=${existingShop.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(shopData),
+        });
       } else {
-        const { error } = await supabase.from("shops").insert(shopData);
-        if (error) throw error;
+        await fetch(`http://localhost:3001/api/shop-create`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(shopData),
+        });
       }
     },
     onSuccess: (_, status) => {

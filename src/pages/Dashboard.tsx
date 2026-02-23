@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+
 import { useIsMobile } from "@/hooks/use-mobile";
 
 // Dashboard sub-views
@@ -16,14 +16,18 @@ import AnalyzeOverview from "@/components/dashboard/AnalyzeOverview";
 import MyShop from "@/components/dashboard/MyShop";
 import Reviews from "@/components/dashboard/Reviews";
 import AnalyzeAdvanced from "@/components/dashboard/AnalyzeAdvanced";
+import Profile from "./Profile";
 
 type DashboardView = "overview" | "shop" | "reviews" | "analyze";
+
+type DashboardView = "overview" | "shop" | "reviews" | "analyze" | "profile";
 
 const sidebarItems: { key: DashboardView; label: string; icon: typeof BarChart3 }[] = [
   { key: "overview", label: "Analyze Overview", icon: BarChart3 },
   { key: "shop", label: "My Shop", icon: Store },
   { key: "reviews", label: "Reviews", icon: Star },
   { key: "analyze", label: "Analyze", icon: TrendingUp },
+  { key: "profile", label: "Profile", icon: User },
 ];
 
 const Dashboard = () => {
@@ -38,21 +42,21 @@ const Dashboard = () => {
     queryKey: ["my-shop", user?.id],
     queryFn: async () => {
       if (!user) return null;
-      const { data } = await supabase
-        .from("shops")
-        .select("*")
-        .eq("owner_id", user.id)
-        .limit(1)
-        .maybeSingle();
-      return data;
+      const res = await fetch(`http://localhost:3001/api/shop?shopId=${user.id}`);
+      if (!res.ok) return null;
+      return await res.json();
     },
     enabled: !!user,
   });
 
-  if (!user) {
-    navigate("/login");
-    return null;
-  }
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!user) {
+      navigate("/login");
+    }
+  }, [user, navigate]);
+  if (!user) return null;
 
   const renderView = () => {
     switch (activeView) {
@@ -64,6 +68,8 @@ const Dashboard = () => {
         return <Reviews shop={shop} userPlan={profile?.plan || "free"} />;
       case "analyze":
         return <AnalyzeAdvanced shop={shop} userPlan={profile?.plan || "free"} />;
+      case "profile":
+        return <Profile />;
     }
   };
 
@@ -104,13 +110,6 @@ const Dashboard = () => {
             )}
           </nav>
           <div className="p-3 border-t border-sidebar-border">
-            <div className="px-3 py-2 mb-2">
-              <p className="text-sm font-medium text-secondary-foreground truncate">{profile?.display_name || "User"}</p>
-              <p className="text-xs text-secondary-foreground/50 truncate">@{profile?.username}</p>
-              <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-sidebar-accent text-sidebar-primary">
-                {profile?.plan || "free"} plan
-              </span>
-            </div>
             <Button variant="ghost" className="w-full justify-start gap-3 text-secondary-foreground/50 hover:text-secondary-foreground hover:bg-sidebar-accent" onClick={signOut}>
               <LogOut size={18} /> Sign Out
             </Button>

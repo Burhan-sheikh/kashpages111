@@ -6,7 +6,8 @@ import Navbar from "@/components/layout/Navbar";
 import { Mail, Lock, User, ArrowRight, AtSign } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { lovable } from "@/integrations/lovable/index";
+import { auth } from "@/integrations/firebase/client";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 const GoogleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24">
@@ -18,11 +19,11 @@ const GoogleIcon = () => (
 );
 
 const handleGoogleSignIn = async () => {
-  const { error } = await lovable.auth.signInWithOAuth("google", {
-    redirect_uri: window.location.origin,
-  });
-  if (error) {
-    console.error("Google sign-in error:", error);
+  try {
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(auth, provider);
+  } catch (err) {
+    console.error("Google sign-in error:", err);
   }
 };
 
@@ -95,7 +96,7 @@ const Login = () => {
 };
 
 const Signup = () => {
-  const [name, setName] = useState("");
+  // Removed name state, only username is used
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -105,13 +106,13 @@ const Signup = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !username || !email || !password) return;
+    if (!username || !email || !password) return;
     if (password.length < 6) {
       toast({ title: "Password too short", description: "Must be at least 6 characters", variant: "destructive" });
       return;
     }
     setLoading(true);
-    const { error } = await signUp(email, password, name, username);
+    const { error } = await signUp(email, password, username);
     setLoading(false);
     if (error) {
       toast({ title: "Sign up failed", description: error, variant: "destructive" });
@@ -138,13 +139,7 @@ const Signup = () => {
               <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Or continue with email</span></div>
             </div>
             <form className="space-y-4" onSubmit={handleSubmit}>
-              <div>
-                <label className="text-sm font-medium text-foreground mb-1.5 block">Full Name</label>
-                <div className="relative">
-                  <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your full name" required className="w-full h-11 pl-10 pr-4 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm" />
-                </div>
-              </div>
+
               <div>
                 <label className="text-sm font-medium text-foreground mb-1.5 block">Username</label>
                 <div className="relative">

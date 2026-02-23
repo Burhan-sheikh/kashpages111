@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { firestore } from "@/integrations/firebase/client";
 import { Button } from "@/components/ui/button";
+import { collection, query, where, orderBy, getDocs, updateDoc, deleteDoc, doc } from "firebase/firestore";
 import { Search, Eye, EyeOff, Trash2, Star, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
@@ -21,29 +22,27 @@ const Reviews = ({ shop, userPlan }: Props) => {
     queryKey: ["shop-reviews", shop?.id],
     queryFn: async () => {
       if (!shop) return [];
-      const { data, error } = await supabase
-        .from("reviews")
-        .select("*")
-        .eq("shop_id", shop.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      const q = query(
+        collection(firestore, "reviews"),
+        where("shop_id", "==", shop.id),
+        orderBy("created_at", "desc")
+      );
+      const snap = await getDocs(q);
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     },
     enabled: !!shop,
   });
 
   const toggleVisibility = useMutation({
     mutationFn: async ({ id, visible }: { id: string; visible: boolean }) => {
-      const { error } = await supabase.from("reviews").update({ is_visible: visible }).eq("id", id);
-      if (error) throw error;
+      await updateDoc(doc(firestore, "reviews", id), { is_visible: visible });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["shop-reviews"] }),
   });
 
   const deleteReview = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("reviews").delete().eq("id", id);
-      if (error) throw error;
+      await deleteDoc(doc(firestore, "reviews", id));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shop-reviews"] });

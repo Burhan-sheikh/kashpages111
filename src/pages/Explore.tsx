@@ -5,8 +5,9 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Search, MapPin } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { firestore } from "@/integrations/firebase/client";
 import { Link } from "react-router-dom";
+import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
 
 const Explore = () => {
   const [search, setSearch] = useState("");
@@ -14,13 +15,13 @@ const Explore = () => {
   const { data: shops = [], isLoading } = useQuery({
     queryKey: ["published-shops"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("shops")
-        .select("*")
-        .eq("status", "published")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      const q = query(
+        collection(firestore, "shops"),
+        where("status", "==", "published"),
+        orderBy("created_at", "desc")
+      );
+      const snap = await getDocs(q);
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     },
   });
 

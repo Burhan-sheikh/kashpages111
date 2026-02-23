@@ -1,12 +1,13 @@
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { firestore } from "@/integrations/firebase/client";
 import { Loader2, Phone, MapPin, Star, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { collection, query, where, orderBy, limit, getDocs, addDoc } from "firebase/firestore";
 
 interface ServiceItem { title: string; description: string; }
 interface FaqItem { question: string; answer: string; }
@@ -24,28 +25,30 @@ const PublicPage = () => {
   const { data: shop, isLoading } = useQuery({
     queryKey: ["public-shop", slug],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("shops")
-        .select("*")
-        .eq("slug", slug)
-        .eq("status", "published")
-        .single();
-      if (error) throw error;
-      return data;
+      const q = query(
+        collection(firestore, "shops"),
+        where("slug", "==", slug),
+        where("status", "==", "published"),
+        limit(1)
+      );
+      const snap = await getDocs(q);
+      const doc = snap.docs[0];
+      return doc ? { id: doc.id, ...doc.data() } : null;
     },
   });
 
   const { data: reviews } = useQuery({
     queryKey: ["public-reviews", shop?.id],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("reviews")
-        .select("*")
-        .eq("shop_id", shop!.id)
-        .eq("is_visible", true)
-        .order("created_at", { ascending: false })
-        .limit(20);
-      return data || [];
+      const q = query(
+        collection(firestore, "reviews"),
+        where("shop_id", "==", shop!.id),
+        where("is_visible", "==", true),
+        orderBy("created_at", "desc"),
+        limit(20)
+      );
+      const snap = await getDocs(q);
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     },
     enabled: !!shop?.id && shop?.ratings_enabled,
   });
@@ -53,7 +56,7 @@ const PublicPage = () => {
   // Track page view
   useEffect(() => {
     if (shop?.id) {
-      supabase.from("analytics_events").insert({ shop_id: shop.id, event_type: "page_view" }).then();
+      addDoc(collection(firestore, "analytics_events"), { shop_id: shop.id, event_type: "page_view", created_at: new Date() });
     }
   }, [shop?.id]);
 
@@ -64,13 +67,14 @@ const PublicPage = () => {
   const submitReview = useMutation({
     mutationFn: async () => {
       if (!shop) return;
-      const { error } = await supabase.from("reviews").insert({
+      await addDoc(collection(firestore, "reviews"), {
         shop_id: shop.id,
         reviewer_name: reviewerName,
         rating: reviewRating,
         comment: reviewComment || null,
+        is_visible: true,
+        created_at: new Date(),
       });
-      if (error) throw error;
     },
     onSuccess: () => {
       toast({ title: "Review submitted!" });
@@ -85,7 +89,7 @@ const PublicPage = () => {
 
   const trackClick = (type: string) => {
     if (shop?.id) {
-      supabase.from("analytics_events").insert({ shop_id: shop.id, event_type: type }).then();
+      addDoc(collection(firestore, "analytics_events"), { shop_id: shop.id, event_type: type, created_at: new Date() });
     }
   };
 

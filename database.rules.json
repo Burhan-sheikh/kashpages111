@@ -1,0 +1,26 @@
+{
+  "rules": {
+    "shops": {
+      "$shopId": {
+        ".read": "auth != null",
+        ".write": "auth != null && (
+            (!data.exists() && newData.child('owner_id').val() === auth.uid) ||
+            (data.exists() && data.child('owner_id').val() === auth.uid) ||
+            auth.token.admin === true
+        )"
+      }
+    },
+    "profiles": {
+      "$userId": {
+        ".read": "auth != null && (auth.uid === $userId || auth.token.admin === true)",
+        ".write": "auth != null && (auth.uid === $userId || auth.token.admin === true)"
+      }
+    },
+    "user_roles": {
+      "$roleId": {
+        ".read": "auth != null && (data.child('user_id').val() === auth.uid || auth.token.admin === true)",
+        ".write": "auth != null && auth.token.admin === true"
+      }
+    }
+  }
+}

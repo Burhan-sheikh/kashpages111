@@ -1,73 +1,58 @@
-# Welcome to your Lovable project
+# Kashpages (Firebase)
 
-## Project info
+This repository has been migrated from a Supabase/Lovable backend to **Firebase**.
+The application now uses:
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+- Firebase Authentication (email/password, Google OAuth, etc.)
+- Firestore for application data (`shops`, `profiles`, `reviews`, `analytics_events`, etc.)
+- Firebase Storage for image uploads
+- Firebase Functions / Realtime Database can be added as needed
 
-## How can I edit this code?
+## Getting Started
 
-There are several ways of editing your application.
+1. Create a Firebase project in the [Firebase Console](https://console.firebase.google.com/).
+2. Enable the necessary services: Authentication, Firestore, Storage, and optionally Functions or Realtime Database.
+3. Copy your Firebase configuration values and place them in a `.env.local` file at the project root. Vite loads `.env`, `.env.local`, and `.env.[mode]` automatically; `.env.local` is preferred for local secrets. You can also put them in `.env`, but make sure not to commit any real credentials.
 
-**Use Lovable**
+   ```env
+   VITE_FIREBASE_API_KEY=...
+   VITE_FIREBASE_AUTH_DOMAIN=...
+   VITE_FIREBASE_PROJECT_ID=...
+   VITE_FIREBASE_STORAGE_BUCKET=...
+   VITE_FIREBASE_MESSAGING_SENDER_ID=...
+   VITE_FIREBASE_APP_ID=...
+   VITE_FIREBASE_MEASUREMENT_ID=...
+   ```
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+   See `.env.example` for a template.
 
-Changes made via Lovable will be committed automatically to this repo.
+4. After changing env variables **restart the dev server** (Vite doesn’t pick up edits mid‑run).
 
-**Use your preferred IDE**
+5. Install dependencies and run the development server:
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+   ```bash
+   npm install
+   npm run dev
+   ```
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+5. Start coding! All example database interactions are located in `src/pages` and `src/components`.
 
-Follow these steps:
+## Migration Notes
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+- Authentication logic is now in `src/hooks/useAuth.tsx` using the Firebase SDK.
+- Previous Supabase client under `src/integrations/supabase` has been removed. Firebase initialization lives in `src/integrations/firebase/client.ts`.
+- Search for `supabase` in the codebase to find remaining references; they have been replaced with Firestore examples but may require adjustment.
+- Remove old Supabase-related environment variables from your `.env`.
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+## Deployment
 
-# Step 3: Install the necessary dependencies.
-npm i
+Deploy the frontend as you normally would (Vercel, Netlify, etc.).
+For backend features you can deploy Firebase Functions (`firebase deploy --only functions`) or enable the Realtime Database rules.
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+## Additional Resources
 
-**Edit a file directly in GitHub**
+- [Firebase Web SDK documentation](https://firebase.google.com/docs/web/setup)
+- [Firestore querying guide](https://firebase.google.com/docs/firestore/query-data/queries)
+- [Firebase Authentication guide](https://firebase.google.com/docs/auth)
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Enjoy building with Firebase! Feel free to adapt the data model and add new services as your app evolves.

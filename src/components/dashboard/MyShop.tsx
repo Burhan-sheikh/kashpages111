@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Plus, Edit, Trash2, EyeOff, ExternalLink, Store } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { firestore } from "@/integrations/firebase/client";
 import { useToast } from "@/hooks/use-toast";
+import { doc, deleteDoc, updateDoc } from "firebase/firestore";
 
 interface Props {
   shop: any | null;
@@ -18,8 +19,7 @@ const MyShop = ({ shop }: Props) => {
   const deleteShop = useMutation({
     mutationFn: async () => {
       if (!shop) return;
-      const { error } = await supabase.from("shops").delete().eq("id", shop.id);
-      if (error) throw error;
+      await deleteDoc(doc(firestore, "shops", shop.id));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-shop"] });
@@ -30,8 +30,7 @@ const MyShop = ({ shop }: Props) => {
   const unpublishShop = useMutation({
     mutationFn: async () => {
       if (!shop) return;
-      const { error } = await supabase.from("shops").update({ status: "unpublished" }).eq("id", shop.id);
-      if (error) throw error;
+      await updateDoc(doc(firestore, "shops", shop.id), { status: "unpublished" });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-shop"] });

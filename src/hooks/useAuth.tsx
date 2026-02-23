@@ -1,12 +1,21 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import type { User, Session } from "@supabase/supabase-js";
+
+const AuthContext = createContext<any>(null);
+import { auth } from "@/integrations/firebase/client";
+import type { User as FirebaseUser } from "firebase/auth";
+import {
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  updateProfile,
+} from "firebase/auth";
+import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
 
 interface Profile {
   id: string;
   user_id: string;
   username: string;
-  display_name: string;
   avatar_url: string | null;
   bio: string | null;
   plan: string;
@@ -14,27 +23,18 @@ interface Profile {
 
 type AppRole = "admin" | "moderator" | "user";
 
+
 interface AuthState {
-  user: User | null;
-  session: Session | null;
+  user: FirebaseUser | null;
   profile: Profile | null;
   roles: AppRole[];
   loading: boolean;
   isAdmin: boolean;
 }
 
-interface AuthContextType extends AuthState {
-  signUp: (email: string, password: string, displayName: string, username: string) => Promise<{ error: string | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signOut: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | null>(null);
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [state, setState] = useState<AuthState>({
     user: null,
-    session: null,
     profile: null,
     roles: [],
     loading: true,
@@ -42,56 +42,60 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   });
 
   const fetchProfile = async (userId: string) => {
-    const [{ data: profile }, { data: roles }] = await Promise.all([
-      supabase.from("profiles").select("*").eq("user_id", userId).single(),
-      supabase.from("user_roles").select("role").eq("user_id", userId),
-    ]);
-    const roleList = (roles || []).map((r) => r.role as AppRole);
+    // Fetch profile
+    const profileRes = await fetch(`http://localhost:3001/api/profile?uid=${userId}`);
+    const profileData = profileRes.ok ? await profileRes.json() : null;
+    // Fetch roles
+    const rolesRes = await fetch(`http://localhost:3001/api/roles?uid=${userId}`);
+    const roleList = rolesRes.ok ? await rolesRes.json() : [];
     setState((s) => ({
       ...s,
-      profile: profile as Profile | null,
+      profile: profileData,
       roles: roleList,
       isAdmin: roleList.includes("admin"),
     }));
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setState((s) => ({ ...s, user: session?.user ?? null, session, loading: false }));
-      if (session?.user) {
-        setTimeout(() => fetchProfile(session.user.id), 0);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setState((s) => ({ ...s, user: firebaseUser, loading: false }));
+      if (firebaseUser) {
+        fetchProfile(firebaseUser.uid);
       } else {
         setState((s) => ({ ...s, profile: null, roles: [], isAdmin: false }));
       }
     });
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setState((s) => ({ ...s, user: session?.user ?? null, session, loading: false }));
-      if (session?.user) fetchProfile(session.user.id);
-    });
-
-    return () => subscription.unsubscribe();
+    return unsubscribe;
   }, []);
 
-  const signUp = async (email: string, password: string, displayName: string, username: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: { display_name: displayName, username: username.toLowerCase().replace(/[^a-z0-9_]/g, "_") },
-      },
-    });
-    return { error: error?.message ?? null };
+  const signUp = async (email: string, password: string, username: string) => {
+    try {
+      const { user } = await createUserWithEmailAndPassword(auth, email, password);
+      await setDoc(doc(firestore, "profiles", user.uid), {
+        id: user.uid,
+        user_id: user.uid,
+        username: username.toLowerCase().replace(/[^a-z0-9_]/g, "_"),
+        avatar_url: null,
+        bio: null,
+        plan: "free",
+      });
+      return { error: null };
+    } catch (err: any) {
+      return { error: err.message || "Failed to create account" };
+    }
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error?.message ?? null };
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      return { error: null };
+    } catch (err: any) {
+      return { error: err.message || "Login failed" };
+    }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await firebaseSignOut(auth);
   };
 
   return (
