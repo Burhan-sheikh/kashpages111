@@ -96,12 +96,12 @@ const Login = () => {
 };
 
 const Signup = () => {
-  // Removed name state, only username is used
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -117,7 +117,12 @@ const Signup = () => {
     if (error) {
       toast({ title: "Sign up failed", description: error, variant: "destructive" });
     } else {
-      toast({ title: "Check your email", description: "We sent you a confirmation link." });
+      // Success! Redirect to dashboard immediately
+      toast({ 
+        title: "Account created!", 
+        description: "Welcome to Kashpages. Setting up your profile..." 
+      });
+      navigate("/dashboard");
     }
   };
 
