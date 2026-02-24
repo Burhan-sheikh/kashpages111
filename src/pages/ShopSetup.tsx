@@ -60,6 +60,13 @@ const ShopSetup = () => {
   const [mapLink, setMapLink] = useState("");
   const [mapEmbedCode, setMapEmbedCode] = useState("");
 
+  // Check auth in useEffect to avoid navigation during render
+  useEffect(() => {
+    if (!user) {
+      navigate("/login");
+    }
+  }, [user, navigate]);
+
   // Fetch existing shop
   const { data: existingShop, isLoading } = useQuery({
     queryKey: ["my-shop-setup", user?.uid],
@@ -120,6 +127,26 @@ const ShopSetup = () => {
       return null;
     }
     
+    // Validate file size
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ 
+        title: "File too large", 
+        description: "Maximum file size is 10MB", 
+        variant: "destructive" 
+      });
+      return null;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({ 
+        title: "Invalid file type", 
+        description: "Only image files are allowed", 
+        variant: "destructive" 
+      });
+      return null;
+    }
+    
     const ext = file.name.split(".").pop();
     const filePath = `shop-assets/${user.uid}/${path}-${Date.now()}.${ext}`;
     
@@ -134,17 +161,20 @@ const ShopSetup = () => {
       
       await uploadBytes(storageReference, file, metadata);
       const url = await getDownloadURL(storageReference);
+      toast({ title: "Upload successful!", description: "Image uploaded" });
       return url;
     } catch (err: any) {
       console.error("Upload error:", err);
       let errorMessage = "Upload failed";
       
       if (err.code === 'storage/unauthorized') {
-        errorMessage = "You don't have permission to upload. Please check storage rules.";
+        errorMessage = "Permission denied. Please make sure storage rules are deployed.";
       } else if (err.code === 'storage/canceled') {
         errorMessage = "Upload was cancelled";
       } else if (err.code === 'storage/unknown') {
-        errorMessage = "An unknown error occurred. Check your internet connection.";
+        errorMessage = "Upload failed. Check your internet connection and try again.";
+      } else if (err.message) {
+        errorMessage = err.message;
       }
       
       toast({ 
@@ -265,8 +295,7 @@ const ShopSetup = () => {
   };
 
   if (!user) {
-    navigate("/login");
-    return null;
+    return null; // Will redirect in useEffect
   }
 
   if (isLoading) {
@@ -331,7 +360,7 @@ const ShopSetup = () => {
                             <span className="text-sm text-muted-foreground">Upload cover image</span>
                           </>
                         )}
-                        <input type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
+                        <input type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} disabled={uploading} />
                       </label>
                     )}
                   </div>
@@ -382,7 +411,7 @@ const ShopSetup = () => {
                             <span className="text-[10px] text-muted-foreground">Add</span>
                           </>
                         )}
-                        <input type="file" accept="image/*" className="hidden" onChange={handleGalleryUpload} />
+                        <input type="file" accept="image/*" className="hidden" onChange={handleGalleryUpload} disabled={uploading} />
                       </label>
                     )}
                   </div>
