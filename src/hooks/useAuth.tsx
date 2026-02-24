@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 
 const AuthContext = createContext<any>(null);
-import { auth } from "@/integrations/firebase/client";
+import { auth, firestore } from "@/integrations/firebase/client";
 import type { User as FirebaseUser } from "firebase/auth";
 import {
   onAuthStateChanged,
@@ -42,18 +42,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   });
 
   const fetchProfile = async (userId: string) => {
-    // Fetch profile
-    const profileRes = await fetch(`http://localhost:3001/api/profile?uid=${userId}`);
-    const profileData = profileRes.ok ? await profileRes.json() : null;
-    // Fetch roles
-    const rolesRes = await fetch(`http://localhost:3001/api/roles?uid=${userId}`);
-    const roleList = rolesRes.ok ? await rolesRes.json() : [];
-    setState((s) => ({
-      ...s,
-      profile: profileData,
-      roles: roleList,
-      isAdmin: roleList.includes("admin"),
-    }));
+    try {
+      // Fetch profile from Firestore directly
+      const profileDoc = await getDoc(doc(firestore, "profiles", userId));
+      const profileData = profileDoc.exists() ? { id: profileDoc.id, ...profileDoc.data() } as Profile : null;
+      
+      // Fetch roles from Firestore
+      const rolesQuery = query(collection(firestore, "roles"), where("user_id", "==", userId));
+      const rolesSnap = await getDocs(rolesQuery);
+      const roleList: AppRole[] = rolesSnap.docs.map(doc => doc.data().role as AppRole);
+      
+      setState((s) => ({
+        ...s,
+        profile: profileData,
+        roles: roleList,
+        isAdmin: roleList.includes("admin"),
+      }));
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      setState((s) => ({ ...s, profile: null, roles: [], isAdmin: false }));
+    }
   };
 
   useEffect(() => {
@@ -78,6 +86,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         avatar_url: null,
         bio: null,
         plan: "free",
+        created_at: new Date().toISOString(),
       });
       return { error: null };
     } catch (err: any) {
