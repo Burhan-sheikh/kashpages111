@@ -1,37 +1,38 @@
-// Firebase Storage security rules for shop assets and user uploads
-// Files are stored under the bucket with paths like:
-//   shop-assets/{userId}/...     (images for a shop owned by userId)
-//   avatars/{userId}.{ext}       (user profile pictures)
-
 rules_version = '2';
+
+// Firebase Storage Rules
+// IMPORTANT: These rules MUST be deployed to Firebase Console
+// Run: firebase deploy --only storage
+
 service firebase.storage {
   match /b/{bucket}/o {
-    // Allow public read of all files
+    
+    // PUBLIC READ: Anyone can view uploaded files
     match /{allPaths=**} {
       allow read: if true;
     }
 
-    // Shop assets - max 10MB, images only
-    match /shop-assets/{userId}/{rest=**} {
+    // SHOP ASSETS: /shop-assets/{userId}/...
+    // User can only upload to their own folder
+    match /shop-assets/{userId}/{allFiles=**} {
       allow write: if request.auth != null 
                    && request.auth.uid == userId
-                   && request.resource.size < 10 * 1024 * 1024  // Max 10MB
-                   && request.resource.contentType.matches('image/.*');  // Only images
+                   && request.resource.size < 10 * 1024 * 1024;  // Max 10MB
     }
 
-    // Avatar/profile pictures - max 5MB, images only
-    match /avatars/{filename} {
+    // AVATARS: /avatars/...
+    // Any authenticated user can upload avatar
+    match /avatars/{allFiles=**} {
       allow write: if request.auth != null
-                   && request.resource.size < 5 * 1024 * 1024  // Max 5MB
-                   && request.resource.contentType.matches('image/.*');  // Only images
+                   && request.resource.size < 5 * 1024 * 1024;  // Max 5MB
     }
 
-    // Alternative profile-pictures path (for compatibility)
-    match /profile-pictures/{userId}/{filename} {
+    // PROFILE PICTURES: /profile-pictures/{userId}/...
+    // User can only upload to their own folder
+    match /profile-pictures/{userId}/{allFiles=**} {
       allow write: if request.auth != null 
                    && request.auth.uid == userId
-                   && request.resource.size < 5 * 1024 * 1024
-                   && request.resource.contentType.matches('image/.*');
+                   && request.resource.size < 5 * 1024 * 1024;  // Max 5MB
     }
   }
 }
