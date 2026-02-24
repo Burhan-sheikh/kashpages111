@@ -13,7 +13,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { firestore, storage } from "@/integrations/firebase/client";
-// Removed Firestore imports for shop update
+import { collection, query, where, getDocs, limit, addDoc, updateDoc, doc } from "firebase/firestore";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from "@/hooks/use-toast";
 
@@ -71,8 +71,8 @@ const ShopSetup = () => {
         limit(1)
       );
       const snap = await getDocs(q);
-      const doc = snap.docs[0];
-      return doc ? { id: doc.id, ...doc.data() } : null;
+      const shopDoc = snap.docs[0];
+      return shopDoc ? { id: shopDoc.id, ...shopDoc.data() } : null;
     },
     enabled: !!user,
   });
@@ -115,15 +115,43 @@ const ShopSetup = () => {
 
   // Image upload helper
   const uploadImage = useCallback(async (file: File, path: string): Promise<string | null> => {
+    if (!user?.uid) {
+      toast({ title: "Error", description: "User not authenticated", variant: "destructive" });
+      return null;
+    }
+    
     const ext = file.name.split(".").pop();
-    const filePath = `${user!.uid}/${path}-${Date.now()}.${ext}`;
+    const filePath = `shop-assets/${user.uid}/${path}-${Date.now()}.${ext}`;
+    
     try {
-      const storageReference = storageRef(storage, `shop-assets/${filePath}`);
-      await uploadBytes(storageReference, file);
+      const storageReference = storageRef(storage, filePath);
+      const metadata = {
+        contentType: file.type,
+        customMetadata: {
+          'uploadedBy': user.uid,
+        }
+      };
+      
+      await uploadBytes(storageReference, file, metadata);
       const url = await getDownloadURL(storageReference);
       return url;
     } catch (err: any) {
-      toast({ title: "Upload failed", description: err.message || "unknown error", variant: "destructive" });
+      console.error("Upload error:", err);
+      let errorMessage = "Upload failed";
+      
+      if (err.code === 'storage/unauthorized') {
+        errorMessage = "You don't have permission to upload. Please check storage rules.";
+      } else if (err.code === 'storage/canceled') {
+        errorMessage = "Upload was cancelled";
+      } else if (err.code === 'storage/unknown') {
+        errorMessage = "An unknown error occurred. Check your internet connection.";
+      }
+      
+      toast({ 
+        title: "Upload failed", 
+        description: errorMessage, 
+        variant: "destructive" 
+      });
       return null;
     }
   }, [user, toast]);
@@ -169,9 +197,9 @@ const ShopSetup = () => {
   const saveShop = useMutation({
     mutationFn: async (status: string) => {
       if (!user?.uid) {
-        console.error("Shop creation attempted with undefined user.uid", user);
         throw new Error("User not authenticated");
       }
+      
       const shopData = {
         owner_id: user.uid,
         title,
@@ -196,19 +224,17 @@ const ShopSetup = () => {
         map_link: mapLink || null,
         map_embed_code: mapEmbedCode || null,
         status,
+        updated_at: new Date().toISOString(),
       };
 
       if (existingShop && existingShop.id) {
-        await fetch(`http://localhost:3001/api/shop-update?shopId=${existingShop.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(shopData),
-        });
+        // Update existing shop
+        await updateDoc(doc(firestore, "shops", existingShop.id), shopData);
       } else {
-        await fetch(`http://localhost:3001/api/shop-create`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(shopData),
+        // Create new shop
+        await addDoc(collection(firestore, "shops"), {
+          ...shopData,
+          created_at: new Date().toISOString(),
         });
       }
     },
@@ -219,6 +245,7 @@ const ShopSetup = () => {
       navigate("/dashboard");
     },
     onError: (err: any) => {
+      console.error("Save shop error:", err);
       toast({ title: "Error saving shop", description: err.message, variant: "destructive" });
     },
   });
