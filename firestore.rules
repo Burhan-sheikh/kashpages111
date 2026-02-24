@@ -2,37 +2,53 @@
 // Collections used by the app:
 //  - shops        (owned by a user, visible to everyone)
 //  - profiles     (one document per user)
-//  - user_roles   (maps user IDs to roles such as "admin")
+//  - roles        (maps user IDs to roles such as "admin")
 //
 // Admin functionality in the client relies on an `admin` custom claim
 // being set on the user's ID token. You can also manage roles via the
-// `user_roles` collection but rules cannot query across collections, so
+// `roles` collection but rules cannot query across collections, so
 // the easiest approach is to add a custom claim when you promote a user.
 
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // shops: anyone authenticated may read; writes restricted to owner
+    // shops: anyone can read; authenticated users can create/update their own
     match /shops/{shopId} {
-      allow read: if request.auth != null;
+      allow read: if true;  // Public read access
       allow create: if request.auth != null
                      && request.resource.data.owner_id == request.auth.uid;
       allow update, delete: if request.auth != null
                             && resource.data.owner_id == request.auth.uid;
     }
 
-    // profiles: user may read/write their own document; admins can access all
+    // profiles: anyone can read profiles; users can create/write their own
     match /profiles/{userId} {
-      allow read, write: if request.auth != null
-                         && (request.auth.uid == userId
-                             || request.auth.token.admin == true);
+      // Allow anyone to read profiles (for public pages)
+      allow read: if true;
+      
+      // Allow users to create their own profile during signup
+      allow create: if request.auth != null
+                     && request.auth.uid == userId
+                     && request.resource.data.user_id == request.auth.uid;
+      
+      // Allow users to update their own profile or admins to update any
+      allow update: if request.auth != null
+                     && (request.auth.uid == userId
+                         || request.auth.token.admin == true);
+      
+      // Only allow users to delete their own profile
+      allow delete: if request.auth != null
+                     && request.auth.uid == userId;
     }
 
-    // user_roles: users can read their own roles; only admins may modify
-    match /user_roles/{roleId} {
+    // roles: users can read their own roles; only admins may modify
+    match /roles/{roleId} {
+      // Users can read their own roles
       allow read: if request.auth != null && (
                     resource.data.user_id == request.auth.uid
                     || request.auth.token.admin == true);
+      
+      // Only admins can create/update/delete roles
       allow create, update, delete: if request.auth != null
                                     && request.auth.token.admin == true;
     }
