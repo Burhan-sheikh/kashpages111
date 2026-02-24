@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
+import { firestore } from "@/integrations/firebase/client";
+import { collection, query, where, getDocs, limit } from "firebase/firestore";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -17,8 +19,6 @@ import MyShop from "@/components/dashboard/MyShop";
 import Reviews from "@/components/dashboard/Reviews";
 import AnalyzeAdvanced from "@/components/dashboard/AnalyzeAdvanced";
 import Profile from "./Profile";
-
-type DashboardView = "overview" | "shop" | "reviews" | "analyze";
 
 type DashboardView = "overview" | "shop" | "reviews" | "analyze" | "profile";
 
@@ -37,16 +37,27 @@ const Dashboard = () => {
   const [activeView, setActiveView] = useState<DashboardView>("overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Fetch user's shop
+  // Fetch user's shop from Firestore
   const { data: shop } = useQuery({
-    queryKey: ["my-shop", user?.id],
+    queryKey: ["my-shop", user?.uid],
     queryFn: async () => {
-      if (!user) return null;
-      const res = await fetch(`http://localhost:3001/api/shop?shopId=${user.id}`);
-      if (!res.ok) return null;
-      return await res.json();
+      if (!user?.uid) return null;
+      try {
+        const q = query(
+          collection(firestore, "shops"),
+          where("owner_id", "==", user.uid),
+          limit(1)
+        );
+        const snap = await getDocs(q);
+        if (snap.empty) return null;
+        const doc = snap.docs[0];
+        return { id: doc.id, ...doc.data() };
+      } catch (error) {
+        console.error("Error fetching shop:", error);
+        return null;
+      }
     },
-    enabled: !!user,
+    enabled: !!user?.uid,
   });
 
 
