@@ -1,13 +1,10 @@
 // Firestore security rules tailored to the project's schema.
 // Collections used by the app:
-//  - shops        (owned by a user, visible to everyone)
-//  - profiles     (one document per user)
-//  - roles        (maps user IDs to roles such as "admin")
-//
-// Admin functionality in the client relies on an `admin` custom claim
-// being set on the user's ID token. You can also manage roles via the
-// `roles` collection but rules cannot query across collections, so
-// the easiest approach is to add a custom claim when you promote a user.
+//  - shops            (owned by a user, visible to everyone)
+//  - profiles         (one document per user)
+//  - roles            (maps user IDs to roles such as "admin")
+//  - reviews          (public reviews for shops)
+//  - analytics_events (tracking page views and clicks)
 
 rules_version = '2';
 service cloud.firestore {
@@ -39,6 +36,36 @@ service cloud.firestore {
       // Only allow users to delete their own profile
       allow delete: if request.auth != null
                      && request.auth.uid == userId;
+    }
+
+    // reviews: anyone can read visible reviews; anyone can create reviews
+    match /reviews/{reviewId} {
+      // Anyone can read visible reviews
+      allow read: if true;
+      
+      // Anyone can create a review (even unauthenticated users)
+      allow create: if request.resource.data.shop_id is string
+                     && request.resource.data.reviewer_name is string
+                     && request.resource.data.rating is number
+                     && request.resource.data.rating >= 1
+                     && request.resource.data.rating <= 5;
+      
+      // Only shop owners can update/delete reviews for their shop
+      allow update, delete: if request.auth != null
+                            && exists(/databases/$(database)/documents/shops/$(resource.data.shop_id))
+                            && get(/databases/$(database)/documents/shops/$(resource.data.shop_id)).data.owner_id == request.auth.uid;
+    }
+
+    // analytics_events: anyone can create events (for tracking); only owners can read
+    match /analytics_events/{eventId} {
+      // Anyone can create analytics events (page views, clicks)
+      allow create: if request.resource.data.shop_id is string
+                     && request.resource.data.event_type is string;
+      
+      // Only shop owners can read their analytics
+      allow read: if request.auth != null
+                   && exists(/databases/$(database)/documents/shops/$(resource.data.shop_id))
+                   && get(/databases/$(database)/documents/shops/$(resource.data.shop_id)).data.owner_id == request.auth.uid;
     }
 
     // roles: users can read their own roles; only admins may modify
